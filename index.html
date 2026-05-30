@@ -188,6 +188,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(10,14,23,0.92);backdrop-fi
     <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
     <button class="nav-tab" onclick="showPage('tendances')">Tendances</button>
     <button class="nav-tab" onclick="showPage('profil')">Profil</button>
+    <button class="nav-tab" onclick="showPage('ia')">🤖 IA Coach</button>
     <button class="nav-tab" onclick="showPage('coach')">Coach</button>
   </div>
   <div class="nav-sync">
@@ -201,6 +202,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(10,14,23,0.92);backdrop-fi
   <button class="bnav-btn active" onclick="showPage('dashboard')"><span class="bnav-icon">🏠</span>Dashboard</button>
   <button class="bnav-btn" onclick="showPage('tendances')"><span class="bnav-icon">📈</span>Tendances</button>
   <button class="bnav-btn" onclick="showPage('profil')"><span class="bnav-icon">👤</span>Profil</button>
+  <button class="bnav-btn" onclick="showPage('ia')"><span class="bnav-icon">🤖</span>IA Coach</button>
   <button class="bnav-btn" onclick="showPage('coach')"><span class="bnav-icon">🎯</span>Coach</button>
 </div>
 
@@ -324,7 +326,545 @@ nav{position:sticky;top:0;z-index:100;background:rgba(10,14,23,0.92);backdrop-fi
     <div class="trend-w"><canvas id="trendScore"></canvas></div>
   </div>
 </div>
+<!-- ═══════════════════════════════════════════════════════
+     MODULE : IA COACH + MÉTÉO + POLAR FLOW
+     À insérer dans index.html — nouveaux onglets + scripts
+     ═══════════════════════════════════════════════════════ -->
 
+<!-- ══ STYLES ADDITIONNELS (ajouter dans <style>) ══════ -->
+<style id="module-styles">
+.ai-bubble{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem;margin-bottom:.8rem;font-family:var(--font-m);font-size:.78rem;line-height:1.75;color:var(--text)}
+.ai-bubble.user{background:rgba(0,229,160,.07);border-color:rgba(0,229,160,.18);margin-left:2rem}
+.ai-bubble.assistant{margin-right:2rem}
+.ai-bubble .bubble-label{font-size:.6rem;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.08em}
+.ai-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;margin-bottom:1rem}
+.ai-section-title{font-size:.8rem;font-weight:700;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
+.ai-tag{display:inline-block;font-family:var(--font-m);font-size:.6rem;padding:2px 8px;border-radius:20px;margin:.15rem}
+.ai-tag.ok{background:rgba(0,229,160,.1);color:var(--accent)}
+.ai-tag.warn{background:rgba(255,179,71,.12);color:var(--warn)}
+.ai-tag.danger{background:rgba(255,92,108,.1);color:var(--danger)}
+.chat-input-row{display:flex;gap:.6rem;margin-top:1rem}
+.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-m);font-size:.78rem;padding:.55rem .8rem}
+.chat-input:focus{outline:none;border-color:var(--accent)}
+.chat-send{background:var(--accent);color:#000;border:none;border-radius:8px;padding:.55rem 1rem;font-family:var(--font-d);font-weight:700;font-size:.75rem;cursor:pointer;white-space:nowrap}
+.chat-send:disabled{opacity:.4;cursor:not-allowed}
+.meteo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.6rem;margin:.8rem 0}
+.meteo-card{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:.7rem .8rem;text-align:center}
+.meteo-val{font-size:1.3rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+.meteo-lbl{font-family:var(--font-m);font-size:.58rem;color:var(--muted);margin-top:.2rem;text-transform:uppercase;letter-spacing:.05em}
+.polar-item{display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--font-m);font-size:.72rem}
+.polar-item:last-child{border:none}
+.polar-date{color:var(--muted);font-size:.65rem}
+.polar-type{color:var(--accent2)}
+.polar-stats{display:flex;gap:.8rem;color:var(--muted);font-size:.65rem}
+.polar-stats span{color:var(--text)}
+.intensity-bar{height:8px;border-radius:4px;margin:.4rem 0;overflow:hidden;background:rgba(255,255,255,.07)}
+.intensity-fill{height:100%;border-radius:4px;transition:width 1s ease}
+.report-loading{display:flex;align-items:center;gap:.7rem;font-family:var(--font-m);font-size:.75rem;color:var(--muted);padding:1rem}
+.report-loading .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.polar-connect-box{background:rgba(79,158,255,.06);border:1px solid rgba(79,158,255,.2);border-radius:12px;padding:1.1rem;margin-bottom:1rem}
+</style>
+
+<!-- ══ PAGE : IA COACH ═════════════════════════════════ -->
+<div class="page" id="page-ia">
+
+  <!-- Météo section -->
+  <div class="sec">Environnement nocturne <span id="meteo-location" style="color:var(--accent);font-family:var(--font-m);font-size:.6rem;margin-left:.4rem"></span></div>
+  <div class="ai-section">
+    <div id="meteo-content">
+      <div style="font-family:var(--font-m);font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:.6rem">
+        <div class="spinner" style="width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .7s linear infinite"></div>
+        Récupération météo en cours…
+      </div>
+    </div>
+    <div style="margin-top:.8rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+      <div style="font-family:var(--font-m);font-size:.65rem;color:var(--muted)">Température chambre :</div>
+      <input type="number" id="temp-chambre" placeholder="ex: 19" step="0.5"
+        style="width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-m);font-size:.75rem;padding:.3rem .5rem">
+      <span style="font-family:var(--font-m);font-size:.65rem;color:var(--muted)">°C (optionnel — surcharge la valeur estimée)</span>
+    </div>
+  </div>
+
+  <!-- Polar section -->
+  <div class="sec mt">Entraînements Polar Flow</div>
+  <div id="polar-section">
+    <div class="polar-connect-box">
+      <div style="font-size:.82rem;font-weight:700;margin-bottom:.4rem">🔗 Connecter Polar Flow</div>
+      <div style="font-family:var(--font-m);font-size:.72rem;color:var(--muted);margin-bottom:.8rem">Autorise l'accès à tes sessions d'entraînement pour que l'IA puisse croiser récupération nocturne et charge sportive.</div>
+      <button class="btn" onclick="connectPolar()">Connecter mon compte Polar</button>
+    </div>
+  </div>
+  <div id="polar-sessions-list" style="display:none">
+    <div class="ai-section">
+      <div class="ai-section-title">📊 Sessions récentes</div>
+      <div id="polar-sessions-content"></div>
+      <button class="btn btn-ghost" style="margin-top:.8rem;font-size:.68rem;padding:.4rem .8rem" onclick="syncPolar()">↻ Synchroniser Polar</button>
+    </div>
+  </div>
+
+  <!-- Rapport IA -->
+  <div class="sec mt">Rapport IA du jour</div>
+  <div id="ai-report-section">
+    <div class="ai-section" style="text-align:center;padding:1.5rem">
+      <div style="font-size:1.5rem;margin-bottom:.6rem">🤖</div>
+      <div style="font-size:.82rem;font-weight:700;margin-bottom:.3rem">Importe une nuit depuis le Dashboard</div>
+      <div style="font-family:var(--font-m);font-size:.7rem;color:var(--muted)">Le rapport s'génère automatiquement après chaque import de CSV</div>
+    </div>
+  </div>
+
+  <!-- Chat IA -->
+  <div class="sec mt">Discussion avec l'IA coach</div>
+  <div id="chat-container">
+    <div class="ai-bubble assistant">
+      <div class="bubble-label">🤖 IA Coach</div>
+      Bonjour Matteo. Importe ton CSV de nuit pour que je puisse analyser ta récupération et te donner des recommandations personnalisées pour aujourd'hui.
+    </div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chat-input" placeholder="Explique tes ressentis, pose une question…" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="chat-send" id="chat-send-btn" onclick="sendChat()">Envoyer →</button>
+  </div>
+  <div style="font-family:var(--font-m);font-size:.6rem;color:var(--muted);margin-top:.5rem;text-align:center">
+    L'IA se base uniquement sur tes données personnelles croisées avec des références scientifiques en physiologie sportive
+  </div>
+
+</div><!-- /page-ia -->
+
+<!-- ══ SCRIPT MODULE ════════════════════════════════════ -->
+<script id="module-script">
+// ─── CONFIG ────────────────────────────────────────────
+const POLAR_CLIENT_ID     = '2898f3eb-296f-4a83-b904-f2a6ff2c346f';
+const POLAR_CLIENT_SECRET = '5f597221-4b3a-44f2-9d79-8de555ef0169';
+const POLAR_REDIRECT      = 'https://checkme-app.vercel.app/polar-callback';
+const POLAR_AUTH_URL      = 'https://flow.polar.com/oauth2/authorization';
+const POLAR_TOKEN_URL     = 'https://polarremote.com/v2/oauth2/token';
+const POLAR_API           = 'https://www.polaraccesslink.com/v3';
+const ANTHROPIC_API       = 'https://api.anthropic.com/v1/messages';
+const SUPABASE_URL_G      = 'https://tppwsbbbgkpurhewetvq.supabase.co';
+const SUPABASE_KEY_G      = 'sb_publishable_QuAhADt9n5tQlV14Uf9ubA_4FazBScf';
+
+// ─── MÉTÉO ─────────────────────────────────────────────
+let meteoData = null;
+
+async function loadMeteo() {
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, {timeout:8000})
+    );
+    const {latitude: lat, longitude: lon} = pos.coords;
+    const altUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
+    const altRes = await fetch(altUrl);
+    const altData = await altRes.json();
+    const altitude = Math.round(altData.elevation?.[0] || 0);
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      + `&hourly=temperature_2m,relativehumidity_2m,surface_pressure`
+      + `&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,windspeed_10m_max`
+      + `&timezone=auto&forecast_days=1&past_days=1`;
+    const res = await fetch(url);
+    const d = await res.json();
+
+    const nightTemps = d.hourly.temperature_2m.slice(0, 8);
+    const tempNuit = +(nightTemps.reduce((s,v)=>s+v,0)/nightTemps.length).toFixed(1);
+    const humidite = Math.round(d.hourly.relativehumidity_2m.slice(0,8).reduce((s,v)=>s+v,0)/8);
+    const pression = +(d.hourly.surface_pressure.slice(0,8).reduce((s,v)=>s+v,0)/8).toFixed(1);
+
+    meteoData = { lat, lon, altitude, tempNuit, humidite, pression, tempMax: d.daily.temperature_2m_max[1] };
+
+    // Géocode la ville
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+    const geo = await geoRes.json();
+    const ville = geo.address?.city || geo.address?.town || geo.address?.village || '';
+    document.getElementById('meteo-location').textContent = ville ? `· ${ville} · ${altitude}m` : `· ${altitude}m`;
+
+    // Afficher
+    const spo2Corr = altitude > 1500 ? `SpO₂ attendue corrigée altitude : ≥${Math.max(90, 96 - Math.round((altitude-1500)/500))}%` : 'Altitude normale — seuils SpO₂ standards';
+    const tempWarning = tempNuit > 22 ? '⚠️ Nuit chaude — impact sur récupération attendu' : tempNuit < 14 ? '❄️ Nuit fraîche — favorable à la récupération' : '✅ Température nocturne optimale';
+
+    document.getElementById('meteo-content').innerHTML = `
+      <div class="meteo-grid">
+        <div class="meteo-card"><div class="meteo-val" style="color:${tempNuit>22?'var(--warn)':'var(--accent)'}">${tempNuit}°</div><div class="meteo-lbl">Temp. nuit</div></div>
+        <div class="meteo-card"><div class="meteo-val">${humidite}%</div><div class="meteo-lbl">Humidité</div></div>
+        <div class="meteo-card"><div class="meteo-val">${pression}</div><div class="meteo-lbl">Pression hPa</div></div>
+        <div class="meteo-card"><div class="meteo-val" style="color:var(--accent2)">${altitude}m</div><div class="meteo-lbl">Altitude</div></div>
+      </div>
+      <div style="font-family:var(--font-m);font-size:.7rem;margin-top:.3rem">
+        <div style="color:${tempNuit>22?'var(--warn)':'var(--muted)'};margin-bottom:.2rem">${tempWarning}</div>
+        <div style="color:var(--muted)">${spo2Corr}</div>
+      </div>`;
+
+    // Sauvegarder en DB si session récente
+    const sid = localStorage.getItem('last_session_id');
+    if (sid) saveMeteoToDB(sid, meteoData);
+
+  } catch(e) {
+    document.getElementById('meteo-content').innerHTML =
+      `<div style="font-family:var(--font-m);font-size:.72rem;color:var(--muted)">
+        📍 Géolocalisation refusée — <button onclick="loadMeteo()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:var(--font-m);font-size:.72rem">Réessayer</button>
+        ou entre ta ville manuellement :
+        <input id="ville-manuelle" placeholder="ex: Grenoble" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-m);font-size:.72rem;padding:.3rem .5rem;margin-left:.4rem;width:120px">
+        <button onclick="loadMeteoVille()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-m);font-size:.68rem;padding:.3rem .6rem;cursor:pointer;margin-left:.3rem">OK</button>
+      </div>`;
+  }
+}
+
+async function loadMeteoVille() {
+  const ville = document.getElementById('ville-manuelle')?.value;
+  if (!ville) return;
+  try {
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ville)}&format=json&limit=1`);
+    const geo = await geoRes.json();
+    if (!geo[0]) return;
+    const lat = +geo[0].lat, lon = +geo[0].lon;
+    // Réutiliser même logique
+    navigator.geolocation = { getCurrentPosition: (res) => res({coords:{latitude:lat,longitude:lon}}) };
+    await loadMeteo();
+  } catch(e) { console.error(e); }
+}
+
+async function saveMeteoToDB(sessionId, m) {
+  try {
+    await fetch(`${SUPABASE_URL_G}/rest/v1/meteo_logs`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','apikey':SUPABASE_KEY_G,'Authorization':'Bearer '+SUPABASE_KEY_G},
+      body: JSON.stringify({session_id:sessionId,latitude:m.lat,longitude:m.lon,temp_ext_nuit:m.tempNuit,humidite:m.humidite,pression_hpa:m.pression,altitude_m:m.altitude})
+    });
+  } catch(e) {}
+}
+
+// ─── POLAR FLOW ────────────────────────────────────────
+function connectPolar() {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: POLAR_CLIENT_ID,
+    redirect_uri: POLAR_REDIRECT,
+    scope: 'accesslink.read_all'
+  });
+  window.location.href = POLAR_AUTH_URL + '?' + params.toString();
+}
+
+async function handlePolarCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (!code) return;
+
+  try {
+    // Échange code → token via proxy Supabase Edge Function
+    const res = await fetch(`${SUPABASE_URL_G}/functions/v1/polar-token`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_KEY_G},
+      body: JSON.stringify({code, redirect_uri: POLAR_REDIRECT})
+    });
+    const data = await res.json();
+    if (data.access_token) {
+      localStorage.setItem('polar_token', data.access_token);
+      localStorage.setItem('polar_user_id', data.x_user_id);
+      window.history.replaceState({}, '', '/');
+      showPage('ia');
+      await loadPolarSessions();
+    }
+  } catch(e) { console.error('Polar callback:', e); }
+}
+
+async function syncPolar() {
+  const token = localStorage.getItem('polar_token');
+  const userId = localStorage.getItem('polar_user_id');
+  if (!token || !userId) { connectPolar(); return; }
+
+  try {
+    // Récupérer les transactions d'entraînement
+    const txRes = await fetch(`${SUPABASE_URL_G}/functions/v1/polar-sync`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_KEY_G},
+      body: JSON.stringify({access_token: token, user_id: userId})
+    });
+    const sessions = await txRes.json();
+    if (sessions && sessions.length > 0) {
+      renderPolarSessions(sessions);
+    }
+  } catch(e) { console.error('Polar sync:', e); }
+}
+
+async function loadPolarSessions() {
+  try {
+    const res = await fetch(`${SUPABASE_URL_G}/rest/v1/polar_sessions?order=date_entrainement.desc&limit=7`, {
+      headers: {'apikey':SUPABASE_KEY_G,'Authorization':'Bearer '+SUPABASE_KEY_G}
+    });
+    const sessions = await res.json();
+    if (sessions && sessions.length > 0) {
+      document.getElementById('polar-section').style.display = 'none';
+      document.getElementById('polar-sessions-list').style.display = 'block';
+      renderPolarSessions(sessions);
+    } else if (localStorage.getItem('polar_token')) {
+      document.getElementById('polar-section').style.display = 'none';
+      document.getElementById('polar-sessions-list').style.display = 'block';
+      document.getElementById('polar-sessions-content').innerHTML =
+        '<div class="no-data">Aucune session — clique Synchroniser pour importer</div>';
+    }
+  } catch(e) {}
+}
+
+function renderPolarSessions(sessions) {
+  document.getElementById('polar-sessions-content').innerHTML = sessions.map(s => {
+    const dist = s.distance_m ? `${(s.distance_m/1000).toFixed(1)} km` : '';
+    const dur  = s.duree_min  ? `${s.duree_min} min` : '';
+    const fc   = s.fc_moyenne ? `FC ${s.fc_moyenne} bpm` : '';
+    const load = s.training_load ? `Charge ${s.training_load}` : '';
+    return `<div class="polar-item">
+      <div>
+        <div class="polar-type">${s.type_sport || 'Entraînement'}</div>
+        <div class="polar-date">${s.date_entrainement}</div>
+      </div>
+      <div class="polar-stats">
+        ${dist?`<span>${dist}</span>`:''}
+        ${dur?`<span>${dur}</span>`:''}
+        ${fc?`<span style="color:var(--accent2)">${fc}</span>`:''}
+        ${load?`<span style="color:var(--warn)">${load}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── IA COACH ──────────────────────────────────────────
+let chatHistory = [];
+let lastSessionStats = null;
+let lastPolarSessions = [];
+
+async function generateAIReport(stats, filename) {
+  lastSessionStats = stats;
+  document.getElementById('ai-report-section').innerHTML = `
+    <div class="report-loading">
+      <div class="spinner"></div>
+      Analyse en cours — croisement SpO₂, FC, météo, entraînements Polar…
+    </div>`;
+
+  // Charger sessions Polar récentes
+  try {
+    const res = await fetch(`${SUPABASE_URL_G}/rest/v1/polar_sessions?order=date_entrainement.desc&limit=3`,
+      {headers:{'apikey':SUPABASE_KEY_G,'Authorization':'Bearer '+SUPABASE_KEY_G}});
+    lastPolarSessions = await res.json() || [];
+  } catch(e) { lastPolarSessions = []; }
+
+  const prof = loadProfile ? loadProfile() : null;
+  const tempChambre = document.getElementById('temp-chambre')?.value;
+  const tempRef = tempChambre ? `${tempChambre}°C (saisie manuelle)` :
+    meteoData ? `${meteoData.tempNuit}°C (météo extérieure)` : 'non disponible';
+
+  const systemPrompt = `Tu es un coach sportif expert en physiologie de l'endurance et en récupération pour les athlètes de haut niveau. Tu analyses des données biologiques nocturnes et d'entraînement pour donner des recommandations précises et scientifiquement fondées.
+
+PROFIL DE L'ATHLÈTE :
+- Nom : Matteo Duc
+- Discipline : Marche athlétique
+- Niveau : Élite nationale
+- FC repos habituelle : ${prof?.fc_repos_habituelle || 38} bpm
+- SpO₂ baseline : ${prof?.spo2_repos_habituelle || 98}%
+- Altitude domicile : ${prof?.altitude_domicile_m || 0}m
+
+DONNÉES NOCTURNES (${filename}) :
+- SpO₂ moyenne : ${stats.spo2Avg.toFixed(1)}%
+- SpO₂ minimale : ${stats.spo2Min}%
+- FC minimale : ${stats.prMin} bpm
+- FC moyenne : ${stats.prAvg.toFixed(1)} bpm
+- Temps sous 90% SpO₂ : ${stats.t90p.toFixed(2)}%
+- ODI4 (désaturations/h) : ${stats.odi4.toFixed(1)}
+- Durée enregistrée : ${stats.durH.toFixed(1)}h
+- Score récupération calculé : ${stats.score}/100
+
+ENVIRONNEMENT NOCTURNE :
+- Température : ${tempRef}
+- Humidité : ${meteoData?.humidite || 'N/A'}%
+- Altitude lieu : ${meteoData?.altitude || prof?.altitude_domicile_m || 0}m
+- Pression : ${meteoData?.pression || 'N/A'} hPa
+
+ENTRAÎNEMENTS RÉCENTS (Polar) :
+${lastPolarSessions.length > 0 ? lastPolarSessions.map(s =>
+  `- ${s.date_entrainement} : ${s.type_sport || 'Séance'} ${s.duree_min || '?'}min, ${s.distance_m ? (s.distance_m/1000).toFixed(1)+'km' : ''}, FC moy ${s.fc_moyenne || '?'} bpm, charge ${s.training_load || '?'}`
+).join('\n') : '- Aucune donnée Polar disponible'}
+
+BASE SCIENTIFIQUE À UTILISER :
+- SpO₂ < 95% nuit → réduction synthèse EPO endogène (Roach & Hackett, 2012)
+- FC min > baseline+10 → activation SNS = récupération incomplète (Plews et al., 2013)
+- Température chambre > 21°C → réduction stade sommeil profond de 15-20% (Okamoto-Mizuno, 2012)
+- ODI4 > 5/h → fragmentation sommeil → impact négatif sur synthèse protéique (Chennaoui et al., 2015)
+- Altitude > 1500m → correction SpO₂ attendue de 1% par 500m supplémentaires
+
+Réponds en français. Structure ta réponse en 4 sections claires :
+1. ÉTAT DE RÉCUPÉRATION — synthèse en 2-3 phrases avec les indicateurs clés
+2. FACTEURS ENVIRONNEMENTAUX — impact de la nuit (température, altitude, humidité)
+3. RECOMMANDATION ENTRAÎNEMENT — très précise : type de séance, durée, intensité en % FC max ou allure
+4. QUESTION — une seule question ouverte pour affiner l'analyse selon les ressentis de Matteo
+
+Sois direct, précis, et utilise les données pour justifier chaque recommandation.`;
+
+  try {
+    const response = await fetch(ANTHROPIC_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': '', // Clé API Anthropic à ajouter
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{role:'user', content:'Génère le rapport de récupération pour cette nuit.'}]
+      })
+    });
+
+    const data = await response.json();
+    const rapport = data.content?.[0]?.text || 'Erreur de génération';
+
+    // Extraire intensité recommandée
+    const intensiteMatch = rapport.match(/(\d{2,3})\s*%\s*FC\s*max/i);
+    const intensite = intensiteMatch ? parseInt(intensiteMatch[1]) : null;
+
+    renderAIReport(rapport, intensite);
+
+    // Initialiser le chat avec ce contexte
+    chatHistory = [
+      {role:'user', content:'Génère le rapport de récupération pour cette nuit.'},
+      {role:'assistant', content:rapport}
+    ];
+
+    // Sauvegarder en DB
+    const sid = localStorage.getItem('last_session_id');
+    if (sid) saveReportToDB(sid, rapport, intensite);
+
+  } catch(e) {
+    document.getElementById('ai-report-section').innerHTML = `
+      <div class="ai-section">
+        <div style="font-family:var(--font-m);font-size:.75rem;color:var(--danger)">
+          ❌ Erreur API : ${e.message}<br>
+          <span style="color:var(--muted)">Vérifie que la clé API Anthropic est configurée dans les variables d'environnement Vercel.</span>
+        </div>
+      </div>`;
+    console.error(e);
+  }
+}
+
+function renderAIReport(rapport, intensite) {
+  const sections = rapport.split(/\n(?=\d\.|\*\*\d)/);
+  const intensiteColor = intensite
+    ? intensite >= 80 ? 'var(--danger)' : intensite >= 70 ? 'var(--warn)' : 'var(--accent)'
+    : 'var(--muted)';
+
+  document.getElementById('ai-report-section').innerHTML = `
+    <div class="ai-section">
+      <div class="ai-section-title">🤖 Rapport IA — ${new Date().toLocaleDateString('fr-FR')}</div>
+      ${intensite ? `
+      <div style="margin-bottom:.8rem">
+        <div style="font-family:var(--font-m);font-size:.65rem;color:var(--muted);margin-bottom:.3rem">Intensité max recommandée aujourd'hui</div>
+        <div class="intensity-bar"><div class="intensity-fill" style="width:${intensite}%;background:${intensiteColor}"></div></div>
+        <div style="font-family:var(--font-m);font-size:.7rem;color:${intensiteColor};font-weight:600">${intensite}% FC max</div>
+      </div>` : ''}
+      <div style="font-family:var(--font-m);font-size:.76rem;line-height:1.8;color:var(--text);white-space:pre-wrap">${rapport}</div>
+    </div>`;
+
+  // Ajouter dans le chat
+  addChatBubble('assistant', rapport);
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  addChatBubble('user', msg);
+  input.value = '';
+  document.getElementById('chat-send-btn').disabled = true;
+
+  chatHistory.push({role:'user', content:msg});
+
+  // Ajouter bubble loading
+  const loadId = 'load-' + Date.now();
+  document.getElementById('chat-container').insertAdjacentHTML('beforeend',
+    `<div class="ai-bubble assistant" id="${loadId}"><div class="bubble-label">🤖 IA Coach</div><div class="report-loading" style="padding:.3rem 0"><div class="spinner"></div>Analyse…</div></div>`);
+
+  const prof = loadProfile ? loadProfile() : null;
+  const systemPrompt = `Tu es le coach IA de Matteo Duc, athlète de haut niveau en marche athlétique. Tu as déjà généré son rapport de récupération basé sur ses données SpO₂ (moy ${lastSessionStats?.spo2Avg?.toFixed(1) || '?'}%, FC min ${lastSessionStats?.prMin || '?'} bpm, score ${lastSessionStats?.score || '?'}/100). Tu continues la conversation pour affiner tes recommandations en fonction de ses ressentis. Base-toi uniquement sur ses données et des références scientifiques en physiologie sportive. Sois concis (3-5 phrases max), direct et pratique.`;
+
+  try {
+    const response = await fetch(ANTHROPIC_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': '',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        system: systemPrompt,
+        messages: chatHistory
+      })
+    });
+
+    const data = await response.json();
+    const reply = data.content?.[0]?.text || 'Erreur';
+    chatHistory.push({role:'assistant', content:reply});
+
+    document.getElementById(loadId).innerHTML =
+      `<div class="bubble-label">🤖 IA Coach</div>${reply}`;
+
+  } catch(e) {
+    document.getElementById(loadId).innerHTML =
+      `<div class="bubble-label">🤖 IA Coach</div><span style="color:var(--danger)">Erreur : ${e.message}</span>`;
+  }
+
+  document.getElementById('chat-send-btn').disabled = false;
+  document.getElementById('chat-container').lastElementChild?.scrollIntoView({behavior:'smooth'});
+
+  // Sauvegarder historique chat
+  const sid = localStorage.getItem('last_session_id');
+  if (sid) updateChatHistory(sid, chatHistory);
+}
+
+function addChatBubble(role, text) {
+  const el = document.createElement('div');
+  el.className = `ai-bubble ${role}`;
+  el.innerHTML = `<div class="bubble-label">${role==='user'?'👤 Matteo':'🤖 IA Coach'}</div>${text}`;
+  document.getElementById('chat-container').appendChild(el);
+  el.scrollIntoView({behavior:'smooth'});
+}
+
+async function saveReportToDB(sessionId, rapport, intensite) {
+  try {
+    await fetch(`${SUPABASE_URL_G}/rest/v1/ai_reports`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY_G,'Authorization':'Bearer '+SUPABASE_KEY_G,'Prefer':'return=minimal'},
+      body:JSON.stringify({session_id:sessionId,date_rapport:new Date().toISOString().split('T')[0],rapport_complet:rapport,intensite_max_pct:intensite,messages:JSON.stringify(chatHistory)})
+    });
+  } catch(e){}
+}
+
+async function updateChatHistory(sessionId, history) {
+  try {
+    const existing = await fetch(`${SUPABASE_URL_G}/rest/v1/ai_reports?session_id=eq.${sessionId}&limit=1`,
+      {headers:{'apikey':SUPABASE_KEY_G,'Authorization':'Bearer '+SUPABASE_KEY_G}});
+    const rows = await existing.json();
+    if (rows && rows[0]) {
+      await fetch(`${SUPABASE_URL_G}/rest/v1/ai_reports?id=eq.${rows[0].id}`,{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY_G,'Authorization':'Bearer '+SUPABASE_KEY_G},
+        body:JSON.stringify({messages:JSON.stringify(history)})
+      });
+    }
+  } catch(e){}
+}
+
+// Init au chargement
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.location.pathname.includes('polar-callback') || window.location.search.includes('code=')) {
+    handlePolarCallback();
+  }
+  loadMeteo();
+  loadPolarSessions();
+});
+</script>
 <!-- ══ PAGE : PROFIL ═══════════════════════════════ -->
 <div class="page" id="page-profil">
   <div class="sec">Profil athlète — personnalise l'interprétation</div>
