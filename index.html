@@ -553,7 +553,7 @@ async function handlePolarCallback() {
     // Échange code → token via proxy Supabase Edge Function
     const res = await fetch(`${SUPABASE_URL_G}/functions/v1/polar-auth`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_KEY_G},
+      headers: {'Content-Type':'application/json','apikey':SUPABASE_KEY_G,'Authorization':'Bearer '+SUPABASE_KEY_G},
       body: JSON.stringify({action: 'polar-token', code, redirect_uri: POLAR_REDIRECT})
     });
     const data = await res.json();
@@ -576,7 +576,7 @@ async function syncPolar() {
     // Récupérer les transactions d'entraînement
     const txRes = await fetch(`${SUPABASE_URL_G}/functions/v1/polar-auth`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_KEY_G},
+      headers: {'Content-Type':'application/json','apikey':SUPABASE_KEY_G,'Authorization':'Bearer '+SUPABASE_KEY_G},
       body: JSON.stringify({action: 'polar-sync', access_token: token, user_id: userId})
     });
     const sessions = await txRes.json();
