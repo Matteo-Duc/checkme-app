@@ -702,7 +702,7 @@ Sois direct, précis, et utilise les données pour justifier chaque recommandati
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': '', // Clé API Anthropic à ajouter
+        'x-api-key': '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', // Clé API Anthropic à ajouter
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
@@ -791,7 +791,7 @@ async function sendChat() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': '',
+        'x-api-key': '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',
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
@@ -1243,6 +1243,7 @@ function processFile(file) {
     if (!data) { showStatus('❌ Format non reconnu. CSV Checkme O2 attendu (colonnes : Temps, Niveau d\'oxygène, Fréquence du pouls)', 'err'); return; }
     const stats = calcStats(data);
     renderDashboard(data, file.name);
+    generateAIReport(calcStats(data), file.name);
     await saveToSupabase(data, file.name, stats);
   };
   reader.readAsText(file, 'UTF-8');
